@@ -1,15 +1,35 @@
-master:
-  image: redis:3
-slave:
-  image: redis:3
-  command: redis-server --slaveof redis-master 6379
-  links:
-    - master:redis-master
-sentinel:
-  build: sentinel
-  environment:
-    - SENTINEL_DOWN_AFTER=5000
-    - SENTINEL_FAILOVER=5000
-  links:
-    - master:redis-master
-    - slave
+version: "3"
+
+services:
+  master:
+    image: "redislabs/redisearch:latest"
+    ports: 
+      - "6379:6379"
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - ./data_master/redis:/data
+      - ./redisearch.so:/usr/local/redisearch.so
+  slave:
+    image: "redislabs/redisearch:latest"
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - ./data_slave/redis:/data
+      - ./redisearch.so:/usr/local/redisearch.so
+    links:
+      - master:redis-master
+    command: redis-server /usr/local/etc/redis/redis.conf --slaveof redis-master 6379
+    depends_on:
+      - master
+  sentinel:
+    volumes:
+      - ./data_sentinel/redis:/data
+    build: sentinel
+    environment:
+      - SENTINEL_DOWN_AFTER=5000
+      - SENTINEL_FAILOVER=5000
+    links:
+      - master:redis-master
+      - slave
+    depends_on:
+      - master
+      - slave
